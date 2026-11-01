@@ -1,0 +1,19 @@
+services:
+  api:
+    build: .
+    env_file: .env
+    ports: ["8080:8080"]
+    depends_on: [mongo, redis]
+    restart: unless-stopped
+  mongo:
+    image: mongo:8
+    volumes: [mongo_data:/data/db]
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes: [redis_data:/data]
+    restart: unless-stopped
+volumes:
+  mongo_data:
+  redis_data:
