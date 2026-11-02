@@ -14,14 +14,15 @@ type User struct {
 	CreatedAt    time.Time          `bson:"createdAt" json:"createdAt"`
 }
 type Order struct {
-	ID        string             `bson:"_id" json:"id"`
-	UserID    primitive.ObjectID `bson:"userId" json:"-"`
-	Service   string             `bson:"service" json:"service"`
-	Link      string             `bson:"link" json:"link"`
-	Quantity  int                `bson:"quantity" json:"quantity"`
-	Status    string             `bson:"status" json:"status"`
-	Amount    float64            `bson:"amount" json:"amount"`
-	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
+	ID         string             `bson:"_id" json:"id"`
+	ProviderID string             `bson:"providerId,omitempty" json:"providerId,omitempty"`
+	UserID     primitive.ObjectID `bson:"userId" json:"-"`
+	Service    string             `bson:"service" json:"service"`
+	Link       string             `bson:"link" json:"link"`
+	Quantity   int                `bson:"quantity" json:"quantity"`
+	Status     string             `bson:"status" json:"status"`
+	Amount     float64            `bson:"amount" json:"amount"`
+	CreatedAt  time.Time          `bson:"createdAt" json:"createdAt"`
 }
 type Transaction struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`

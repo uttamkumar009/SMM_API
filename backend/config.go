@@ -16,6 +16,7 @@ type Config struct {
 	JWTSecret                               string
 	JWTTTL                                  time.Duration
 	MongoURI, MongoDatabase, RedisURL       string
+	ProviderAPIURL, ProviderAPIKey          string
 	RateLimitPerMinute                      int
 	DemoEmail, DemoPassword                 string
 }
@@ -38,6 +39,8 @@ func LoadConfig() (Config, error) {
 		MongoURI:           get("MONGO_URI", "mongodb://127.0.0.1:27017"),
 		MongoDatabase:      get("MONGO_DATABASE", "smm_panel"),
 		RedisURL:           redisURL(),
+		ProviderAPIURL:     get("SMM_PROVIDER_API_URL", "https://cheapestsmmpanels.com/api/v2"),
+		ProviderAPIKey:     os.Getenv("SMM_PROVIDER_API_KEY"),
 		RateLimitPerMinute: rate, DemoEmail: get("DEMO_EMAIL", "demo@orbitpanel.com"),
 		DemoPassword: get("DEMO_PASSWORD", "demo123"),
 	}

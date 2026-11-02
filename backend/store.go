@@ -65,7 +65,7 @@ func (s *Store) AddFunds(ctx context.Context, id primitive.ObjectID, amount floa
 	_, err = s.transactions.InsertOne(ctx, Transaction{UserID: id, Description: "Added funds", Type: "Credit", Status: "Completed", Amount: amount, CreatedAt: time.Now()})
 	return user, err
 }
-func (s *Store) CreateOrder(ctx context.Context, userID primitive.ObjectID, service, link string, quantity int, amount float64) (Order, error) {
+func (s *Store) CreateOrder(ctx context.Context, userID primitive.ObjectID, providerID, service, link string, quantity int, amount float64) (Order, error) {
 	var user User
 	if err := s.users.FindOne(ctx, bson.M{"_id": userID}).Decode(&user); err != nil {
 		return Order{}, err
@@ -73,7 +73,7 @@ func (s *Store) CreateOrder(ctx context.Context, userID primitive.ObjectID, serv
 	if user.Balance < amount {
 		return Order{}, errors.New("insufficient wallet balance")
 	}
-	order := Order{ID: "#OR-" + primitive.NewObjectID().Hex()[:8], UserID: userID, Service: service, Link: link, Quantity: quantity, Status: "processing", Amount: amount, CreatedAt: time.Now()}
+	order := Order{ID: "#OR-" + primitive.NewObjectID().Hex()[:8], ProviderID: providerID, UserID: userID, Service: service, Link: link, Quantity: quantity, Status: "processing", Amount: amount, CreatedAt: time.Now()}
 	session, err := s.users.Database().Client().StartSession()
 	if err != nil {
 		return Order{}, err
