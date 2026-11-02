@@ -6,15 +6,14 @@ Go API for `api.smm.babiesiq.tech`, using MongoDB for persistence and Redis for 
 
 ## Vercel deployment
 
-The `api/index.go` file is a Vercel serverless demo entrypoint. Click the button above or import this repository in Vercel, then set the project domain to `api.smm.babiesiq.tech`.
-
-For production wallet/order persistence, use the regular Go service (`main.go`) with MongoDB and Redis. Vercel functions are stateless, so use MongoDB Atlas and Redis Cloud and move the handlers from `api/index.go` to the persistent store-backed API before production.
+The Vercel demo uses `api/index.js` as a native Node.js serverless function. The full Go service is in `backend/` and remains available for VPS or container deployment with MongoDB and Redis. Vercel functions are stateless, so use MongoDB Atlas and Redis Cloud before production.
 
 ## Local setup
 
 ```bash
 cp .env.example .env
 # Set a strong JWT_SECRET and your MongoDB/Redis URLs.
+cd backend
 go mod tidy
 go test ./...
 go run .
