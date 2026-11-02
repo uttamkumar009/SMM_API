@@ -30,6 +30,57 @@ type ProviderService struct {
 	Category string  `json:"category"`
 }
 
+func (s *ProviderService) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	s.ID = rawInt(raw["service"])
+	s.Name = rawString(raw["name"])
+	s.Type = rawString(raw["type"])
+	s.Rate = rawFloat(raw["rate"])
+	s.Min = rawInt(raw["min"])
+	s.Max = rawInt(raw["max"])
+	s.Category = rawString(raw["category"])
+	s.Refill = rawBool(raw["refill"])
+	s.Cancel = rawBool(raw["cancel"])
+	return nil
+}
+
+func rawString(value json.RawMessage) string {
+	var text string
+	if json.Unmarshal(value, &text) == nil {
+		return text
+	}
+	return strings.Trim(string(value), `"`)
+}
+
+func rawFloat(value json.RawMessage) float64 {
+	var number float64
+	if json.Unmarshal(value, &number) == nil {
+		return number
+	}
+	number, _ = strconv.ParseFloat(rawString(value), 64)
+	return number
+}
+
+func rawInt(value json.RawMessage) int {
+	var number int
+	if json.Unmarshal(value, &number) == nil {
+		return number
+	}
+	number, _ = strconv.Atoi(rawString(value))
+	return number
+}
+
+func rawBool(value json.RawMessage) bool {
+	var result bool
+	if json.Unmarshal(value, &result) == nil {
+		return result
+	}
+	return strings.EqualFold(rawString(value), "true") || rawString(value) == "1"
+}
+
 func NewProvider(cfg Config) *Provider {
 	return &Provider{
 		baseURL: strings.TrimRight(cfg.ProviderAPIURL, "/"),
