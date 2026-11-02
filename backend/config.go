@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -35,7 +37,7 @@ func LoadConfig() (Config, error) {
 		JWTSecret:      get("JWT_SECRET", ""), JWTTTL: ttl,
 		MongoURI:           get("MONGO_URI", "mongodb://127.0.0.1:27017"),
 		MongoDatabase:      get("MONGO_DATABASE", "smm_panel"),
-		RedisURL:           get("REDIS_URL", "redis://127.0.0.1:6379/0"),
+		RedisURL:           redisURL(),
 		RateLimitPerMinute: rate, DemoEmail: get("DEMO_EMAIL", "demo@orbitpanel.com"),
 		DemoPassword: get("DEMO_PASSWORD", "demo123"),
 	}
@@ -43,6 +45,31 @@ func LoadConfig() (Config, error) {
 		return Config{}, errors.New("JWT_SECRET must be at least 32 characters in production")
 	}
 	return cfg, nil
+}
+
+func redisURL() string {
+	if value := os.Getenv("REDIS_URL"); value != "" {
+		return value
+	}
+
+	address := get("REDIS_ADDRESS", "127.0.0.1:6379")
+	username := os.Getenv("REDIS_USERNAME")
+	password := os.Getenv("REDIS_PASSWORD")
+	if !strings.HasPrefix(address, "redis://") && !strings.HasPrefix(address, "rediss://") {
+		address = "redis://" + address
+	}
+	parsed, err := url.Parse(address)
+	if err != nil {
+		return address
+	}
+	parsed.User = nil
+	if username != "" || password != "" {
+		parsed.User = url.UserPassword(username, password)
+	}
+	if parsed.Path == "" {
+		parsed.Path = "/0"
+	}
+	return parsed.String()
 }
 
 func get(key, fallback string) string {

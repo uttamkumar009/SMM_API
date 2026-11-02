@@ -23,7 +23,7 @@ Default demo login is configured by `DEMO_EMAIL` and `DEMO_PASSWORD`. Change bot
 
 ## Required Vercel variables
 
-For the production service, configure `APP_ENV`, `JWT_SECRET`, `MONGO_URI`, `MONGO_DATABASE`, `REDIS_URL`, `FRONTEND_ORIGIN`, and `RATE_LIMIT_PER_MINUTE` in Vercel Project Settings → Environment Variables.
+For the production service, configure `APP_ENV`, `JWT_SECRET`, `MONGO_URI`, `MONGO_DATABASE`, `REDIS_ADDRESS`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `FRONTEND_ORIGIN`, and `RATE_LIMIT_PER_MINUTE` in Vercel Project Settings → Environment Variables. `REDIS_URL` can be used instead and takes precedence.
 
 ## Production
 
