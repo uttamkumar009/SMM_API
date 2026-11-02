@@ -1,1 +1,11 @@
-{"private":true,"engines":{"node":">=18"}}
+{
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node --check api/index.js",
+    "typecheck": "node --check api/index.js",
+    "lint": "node --check api/index.js"
+  }
+}
