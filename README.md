@@ -8,6 +8,8 @@ Go API for `api.smm.babiesiq.tech`, using MongoDB for persistence and Redis for 
 
 The Vercel demo uses `api/index.js` as a native Node.js serverless function. The full Go service is in `backend/` and remains available for VPS or container deployment with MongoDB and Redis. Vercel functions are stateless, so use MongoDB Atlas and Redis Cloud before production.
 
+The Vercel project must use the repository root (`.`), not `backend/`. The root `vercel.json` selects the Other framework preset so Vercel deploys `api/index.js`; the Go service is only for VPS or container deployment.
+
 ## Local setup
 
 ```bash
