@@ -55,6 +55,7 @@ func main() {
 	r.Get("/health", api.health)
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/auth/login", api.login)
+		r.Get("/services", api.services)
 		r.Group(func(r chi.Router) {
 			r.Use(api.requireAuth)
 			r.Get("/me", api.me)
@@ -62,6 +63,11 @@ func main() {
 			r.Get("/transactions", api.transactions)
 			r.Post("/orders", api.createOrder)
 			r.Post("/wallet/add-funds", api.addFunds)
+			r.Get("/provider/balance", api.providerBalance)
+			r.Post("/provider/status", api.providerAction("status", "order"))
+			r.Post("/provider/refill", api.providerAction("refill", "order"))
+			r.Post("/provider/refill-status", api.providerAction("refill_status", "refill"))
+			r.Post("/provider/cancel", api.providerAction("cancel", "orders"))
 		})
 	})
 	server := &http.Server{Addr: cfg.Addr, Handler: r, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}

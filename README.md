@@ -10,6 +10,10 @@ The Vercel demo uses `api/index.js` as a native Node.js serverless function. The
 
 The Vercel project must use the repository root (`.`), not `backend/`. The root `vercel.json` selects the Other framework preset so Vercel deploys `api/index.js`; the Go service is only for VPS or container deployment.
 
+## Provider API
+
+The Go service proxies the provider API from the server side. Configure `SMM_PROVIDER_API_URL` and `SMM_PROVIDER_API_KEY` in the backend environment; never put the provider key in frontend code. The frontend reads the live catalog from `GET /api/services`, and orders are submitted through the backend.
+
 ## Local setup
 
 ```bash
