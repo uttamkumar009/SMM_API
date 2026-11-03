@@ -6,15 +6,20 @@ Go API for `api.smm.babiesiq.tech`, using MongoDB for persistence and Redis for 
 
 ## Vercel deployment
 
-The `api/index.go` file is a Vercel serverless demo entrypoint. Click the button above or import this repository in Vercel, then set the project domain to `api.smm.babiesiq.tech`.
+The Vercel demo uses `api/index.js` as a native Node.js serverless function. The full Go service is in `backend/` and remains available for VPS or container deployment with MongoDB and Redis. Vercel functions are stateless, so use MongoDB Atlas and Redis Cloud before production.
 
-For production wallet/order persistence, use the regular Go service (`main.go`) with MongoDB and Redis. Vercel functions are stateless, so use MongoDB Atlas and Redis Cloud and move the handlers from `api/index.go` to the persistent store-backed API before production.
+The Vercel project must use the repository root (`.`), not `backend/`. The root `vercel.json` selects the Other framework preset so Vercel deploys `api/index.js`; the Go service is only for VPS or container deployment.
+
+## Provider API
+
+The Go service proxies the provider API from the server side. Configure `SMM_PROVIDER_API_URL` and `SMM_PROVIDER_API_KEY` in the backend environment; never put the provider key in frontend code. The frontend reads the live catalog from `GET /api/services`, and orders are submitted through the backend.
 
 ## Local setup
 
 ```bash
 cp .env.example .env
 # Set a strong JWT_SECRET and your MongoDB/Redis URLs.
+cd backend
 go mod tidy
 go test ./...
 go run .
@@ -35,7 +40,7 @@ Place the provider response (an object containing a `services` array) in a JSON 
 
 ## Required Vercel variables
 
-For the production service, configure `APP_ENV`, `JWT_SECRET`, `MONGO_URI`, `MONGO_DATABASE`, `REDIS_URL`, `FRONTEND_ORIGIN`, and `RATE_LIMIT_PER_MINUTE` in Vercel Project Settings → Environment Variables.
+For the production service, configure `APP_ENV`, `JWT_SECRET`, `MONGO_URI`, `MONGO_DATABASE`, `REDIS_ADDRESS`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `FRONTEND_ORIGIN`, and `RATE_LIMIT_PER_MINUTE` in Vercel Project Settings → Environment Variables. `REDIS_URL` can be used instead and takes precedence.
 
 ## Production
 

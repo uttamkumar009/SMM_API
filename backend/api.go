@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -19,7 +21,7 @@ type API struct {
 	cfg      Config
 	store    *Store
 	redis    *redis.Client
-	services []Service
+	provider *Provider
 }
 type claims struct {
 	UserID string `json:"uid"`
@@ -27,27 +29,16 @@ type claims struct {
 }
 type loginRequest struct{ Email, Password string }
 type orderRequest struct {
-	Service   string  `json:"service"`
-	Link      string  `json:"link"`
-	ServiceID int     `json:"serviceId"`
-	Quantity  int     `json:"quantity"`
-	Rate      float64 `json:"rate"`
+	Service   string            `json:"service"`
+	ServiceID int               `json:"serviceId"`
+	Link      string            `json:"link"`
+	Quantity  int               `json:"quantity"`
+	Rate      float64           `json:"rate"`
+	Extra     map[string]string `json:"extra"`
 }
 
 func NewAPI(cfg Config, store *Store, redis *redis.Client) *API {
-	return &API{cfg: cfg, store: store, redis: redis, services: demoServices}
-}
-func (a *API) categories(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]interface{}{"categories": categories(a.services)})
-}
-func (a *API) servicesList(w http.ResponseWriter, r *http.Request) {
-	category := categoryQuery(r.URL.Query().Get("category"))
-	result := filteredServices(a.services, category)
-	if category != "" && len(result) == 0 {
-		errorJSON(w, http.StatusNotFound, "category not found")
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"services": result})
+	return &API{cfg: cfg, store: store, redis: redis, provider: NewProvider(cfg)}
 }
 func writeJSON(w http.ResponseWriter, status int, value interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -154,27 +145,54 @@ func (a *API) createOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input orderRequest
-	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input) != nil || input.Service == "" || input.Link == "" || input.Quantity < 1 {
-		errorJSON(w, 400, "service, link and positive quantity are required")
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input) != nil || input.ServiceID < 1 || input.Link == "" || input.Quantity < 1 {
+		errorJSON(w, 400, "serviceId, link and positive quantity are required")
 		return
 	}
-	if input.ServiceID > 0 {
-		service, found := serviceByID(a.services, input.ServiceID)
-		if !found {
-			errorJSON(w, http.StatusBadRequest, "selected service not found")
-			return
-		}
-		if input.Quantity < service.Min || input.Quantity > service.Max {
-			errorJSON(w, http.StatusBadRequest, "quantity is outside the selected service limits")
-			return
-		}
-		input.Service = service.Name
-		input.Rate = service.Rate
-	} else if input.Rate <= 0 || input.Rate > 100 {
-		input.Rate = 2.4
+	services, err := a.provider.Services(r.Context())
+	if err != nil {
+		errorJSON(w, http.StatusBadGateway, err.Error())
+		return
 	}
+	var selected *ProviderService
+	for index := range services {
+		if services[index].ID == input.ServiceID {
+			selected = &services[index]
+			break
+		}
+	}
+	if selected == nil {
+		errorJSON(w, http.StatusBadRequest, "selected service not found")
+		return
+	}
+	if input.Quantity < selected.Min || input.Quantity > selected.Max {
+		errorJSON(w, http.StatusBadRequest, "quantity is outside the selected service limits")
+		return
+	}
+	input.Service = selected.Name
+	input.Rate = selected.Rate
 	amount := float64(input.Quantity) / 1000 * input.Rate
-	order, err := a.store.CreateOrder(r.Context(), id, input.Service, input.Link, input.Quantity, amount)
+	providerData := map[string]string{
+		"link":     input.Link,
+		"quantity": strconv.Itoa(input.Quantity),
+	}
+	for key, value := range input.Extra {
+		providerData[key] = value
+	}
+	providerOrder, err := a.provider.AddOrder(r.Context(), input.ServiceID, providerData)
+	if err != nil {
+		errorJSON(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if providerError, ok := providerOrder["error"].(string); ok && providerError != "" {
+		errorJSON(w, http.StatusBadGateway, providerError)
+		return
+	}
+	providerID := ""
+	if rawID, ok := providerOrder["order"]; ok {
+		providerID = fmt.Sprint(rawID)
+	}
+	order, err := a.store.CreateOrder(r.Context(), id, providerID, input.Service, input.Link, input.Quantity, amount)
 	if err != nil {
 		errorJSON(w, 400, err.Error())
 		return
@@ -187,6 +205,7 @@ func (a *API) addFunds(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, 401, "authentication required")
 		return
 	}
+
 	var input struct {
 		Amount float64 `json:"amount"`
 	}
@@ -202,5 +221,74 @@ func (a *API) addFunds(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 201, map[string]interface{}{"user": user})
 }
 
+func (a *API) services(w http.ResponseWriter, r *http.Request) {
+	result, err := a.provider.Services(r.Context())
+	if err != nil {
+		errorJSON(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	category := categoryQuery(r.URL.Query().Get("category"))
+	if category != "" {
+		filtered := make([]ProviderService, 0)
+		for _, service := range result {
+			if strings.EqualFold(service.Category, category) {
+				filtered = append(filtered, service)
+			}
+		}
+		result = filtered
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"services": result})
+}
+
+func (a *API) categories(w http.ResponseWriter, r *http.Request) {
+	services, err := a.provider.Services(r.Context())
+	if err != nil {
+		errorJSON(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	seen := make(map[string]bool)
+	result := make([]string, 0)
+	for _, service := range services {
+		if service.Category != "" && !seen[service.Category] {
+			seen[service.Category] = true
+			result = append(result, service.Category)
+		}
+	}
+	sort.Strings(result)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"categories": result})
+}
+
+func (a *API) providerBalance(w http.ResponseWriter, r *http.Request) {
+	result, err := a.provider.Balance(r.Context())
+	if err != nil {
+		errorJSON(w, http.StatusBadGateway, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (a *API) providerAction(action, key string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			ID string `json:"id"`
+		}
+		if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input) != nil || input.ID == "" {
+			errorJSON(w, http.StatusBadRequest, "id is required")
+			return
+		}
+		result, err := a.provider.Action(r.Context(), action, key, input.ID)
+		if err != nil {
+			errorJSON(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+	}
+}
+
 var _ = chi.NewRouter
 var _ = strconv.Itoa
+
+func categoryQuery(value string) string {
+	return strings.TrimSpace(value)
+}
