@@ -94,7 +94,8 @@ module.exports = async (req, res) => {
         action: "add",
         service: String(body.serviceId),
         link: String(body.link),
-        quantity: String(body.quantity)
+        quantity: String(body.quantity),
+        ...(body.extra?.comments ? {comments: String(body.extra.comments)} : {})
       }));
       if (providerOrder.error) {
         res.status(502).json({error: providerOrder.error});
