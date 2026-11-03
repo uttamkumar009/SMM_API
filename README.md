@@ -29,7 +29,7 @@ Default demo login is configured by `DEMO_EMAIL` and `DEMO_PASSWORD`. Change bot
 
 ## Service catalog API
 
-The frontend loads the catalog from the backend:
+The frontend loads the catalog from the backend, grouped by popular platform and category. Custom Comments services expose a comments field and forward it to the provider:
 
 ```bash
 curl http://localhost:8080/api/categories
