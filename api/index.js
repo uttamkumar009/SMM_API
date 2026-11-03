@@ -44,7 +44,20 @@ module.exports = async (req, res) => {
   }
   if ((path === "/api/services" || path === "/services") && req.method === "GET") {
     try {
-      res.status(200).json({services: await providerRequest(new URLSearchParams({action: "services"}))});
+      const services = await providerRequest(new URLSearchParams({action: "services"}));
+      const category = new URL(req.url, "http://localhost").searchParams.get("category");
+      const filtered = category ? services.filter(service => String(service.category || "").toLowerCase() === category.toLowerCase()) : services;
+      res.status(200).json({services: filtered});
+    } catch (error) {
+      res.status(502).json({error: error.message});
+    }
+    return;
+  }
+  if ((path === "/api/categories" || path === "/categories") && req.method === "GET") {
+    try {
+      const services = await providerRequest(new URLSearchParams({action: "services"}));
+      const categories = [...new Set(services.map(service => service.category).filter(Boolean))].sort();
+      res.status(200).json({categories});
     } catch (error) {
       res.status(502).json({error: error.message});
     }

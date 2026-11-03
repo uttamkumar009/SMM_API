@@ -56,6 +56,7 @@ func main() {
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/auth/login", api.login)
 		r.Get("/services", api.services)
+		r.Get("/categories", api.categories)
 		r.Group(func(r chi.Router) {
 			r.Use(api.requireAuth)
 			r.Get("/me", api.me)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -148,9 +149,28 @@ func (a *API) createOrder(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, 400, "serviceId, link and positive quantity are required")
 		return
 	}
-	if input.Rate <= 0 || input.Rate > 100 {
-		input.Rate = 2.4
+	services, err := a.provider.Services(r.Context())
+	if err != nil {
+		errorJSON(w, http.StatusBadGateway, err.Error())
+		return
 	}
+	var selected *ProviderService
+	for index := range services {
+		if services[index].ID == input.ServiceID {
+			selected = &services[index]
+			break
+		}
+	}
+	if selected == nil {
+		errorJSON(w, http.StatusBadRequest, "selected service not found")
+		return
+	}
+	if input.Quantity < selected.Min || input.Quantity > selected.Max {
+		errorJSON(w, http.StatusBadRequest, "quantity is outside the selected service limits")
+		return
+	}
+	input.Service = selected.Name
+	input.Rate = selected.Rate
 	amount := float64(input.Quantity) / 1000 * input.Rate
 	providerData := map[string]string{
 		"link":     input.Link,
@@ -207,7 +227,35 @@ func (a *API) services(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, http.StatusBadGateway, err.Error())
 		return
 	}
+	category := categoryQuery(r.URL.Query().Get("category"))
+	if category != "" {
+		filtered := make([]ProviderService, 0)
+		for _, service := range result {
+			if strings.EqualFold(service.Category, category) {
+				filtered = append(filtered, service)
+			}
+		}
+		result = filtered
+	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"services": result})
+}
+
+func (a *API) categories(w http.ResponseWriter, r *http.Request) {
+	services, err := a.provider.Services(r.Context())
+	if err != nil {
+		errorJSON(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	seen := make(map[string]bool)
+	result := make([]string, 0)
+	for _, service := range services {
+		if service.Category != "" && !seen[service.Category] {
+			seen[service.Category] = true
+			result = append(result, service.Category)
+		}
+	}
+	sort.Strings(result)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"categories": result})
 }
 
 func (a *API) providerBalance(w http.ResponseWriter, r *http.Request) {
@@ -216,6 +264,7 @@ func (a *API) providerBalance(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, http.StatusBadGateway, err.Error())
 		return
 	}
+
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -239,3 +288,7 @@ func (a *API) providerAction(action, key string) http.HandlerFunc {
 
 var _ = chi.NewRouter
 var _ = strconv.Itoa
+
+func categoryQuery(value string) string {
+	return strings.TrimSpace(value)
+}
