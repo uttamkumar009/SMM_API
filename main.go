@@ -42,6 +42,10 @@ func main() {
 		log.Printf("redis unavailable: %v", err)
 	}
 	store := NewStore(mongoClient.Database(cfg.MongoDatabase), cfg)
+	services, err := loadServices(cfg.ServicesCatalogFile)
+	if err != nil {
+		log.Fatalf("could not load services catalog: %v", err)
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(cfg.DemoPassword), bcrypt.DefaultCost)
 	if err != nil {
 		log.Fatal(err)
@@ -50,11 +54,14 @@ func main() {
 		log.Printf("demo user seed skipped: %v", err)
 	}
 	api := NewAPI(cfg, store, redisClient)
+	api.services = services
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP, middleware.RequestID, middleware.Recoverer, SecurityHeaders, RateLimit(redisClient, cfg.RateLimitPerMinute))
 	r.Get("/health", api.health)
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/auth/login", api.login)
+		r.Get("/categories", api.categories)
+		r.Get("/services", api.servicesList)
 		r.Group(func(r chi.Router) {
 			r.Use(api.requireAuth)
 			r.Get("/me", api.me)

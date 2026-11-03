@@ -16,9 +16,10 @@ import (
 )
 
 type API struct {
-	cfg   Config
-	store *Store
-	redis *redis.Client
+	cfg      Config
+	store    *Store
+	redis    *redis.Client
+	services []Service
 }
 type claims struct {
 	UserID string `json:"uid"`
@@ -26,13 +27,27 @@ type claims struct {
 }
 type loginRequest struct{ Email, Password string }
 type orderRequest struct {
-	Service, Link string
-	Quantity      int
-	Rate          float64
+	Service   string  `json:"service"`
+	Link      string  `json:"link"`
+	ServiceID int     `json:"serviceId"`
+	Quantity  int     `json:"quantity"`
+	Rate      float64 `json:"rate"`
 }
 
 func NewAPI(cfg Config, store *Store, redis *redis.Client) *API {
-	return &API{cfg: cfg, store: store, redis: redis}
+	return &API{cfg: cfg, store: store, redis: redis, services: demoServices}
+}
+func (a *API) categories(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]interface{}{"categories": categories(a.services)})
+}
+func (a *API) servicesList(w http.ResponseWriter, r *http.Request) {
+	category := categoryQuery(r.URL.Query().Get("category"))
+	result := filteredServices(a.services, category)
+	if category != "" && len(result) == 0 {
+		errorJSON(w, http.StatusNotFound, "category not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"services": result})
 }
 func writeJSON(w http.ResponseWriter, status int, value interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -143,7 +158,19 @@ func (a *API) createOrder(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, 400, "service, link and positive quantity are required")
 		return
 	}
-	if input.Rate <= 0 || input.Rate > 100 {
+	if input.ServiceID > 0 {
+		service, found := serviceByID(a.services, input.ServiceID)
+		if !found {
+			errorJSON(w, http.StatusBadRequest, "selected service not found")
+			return
+		}
+		if input.Quantity < service.Min || input.Quantity > service.Max {
+			errorJSON(w, http.StatusBadRequest, "quantity is outside the selected service limits")
+			return
+		}
+		input.Service = service.Name
+		input.Rate = service.Rate
+	} else if input.Rate <= 0 || input.Rate > 100 {
 		input.Rate = 2.4
 	}
 	amount := float64(input.Quantity) / 1000 * input.Rate

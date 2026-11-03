@@ -10,12 +10,12 @@ import (
 )
 
 type Config struct {
-	Env, Addr, PublicAPIURL, FrontendOrigin string
-	JWTSecret                               string
-	JWTTTL                                  time.Duration
-	MongoURI, MongoDatabase, RedisURL       string
-	RateLimitPerMinute                      int
-	DemoEmail, DemoPassword                 string
+	Env, Addr, PublicAPIURL, FrontendOrigin, ServicesCatalogFile string
+	JWTSecret                                                    string
+	JWTTTL                                                       time.Duration
+	MongoURI, MongoDatabase, RedisURL                            string
+	RateLimitPerMinute                                           int
+	DemoEmail, DemoPassword                                      string
 }
 
 func LoadConfig() (Config, error) {
@@ -30,9 +30,10 @@ func LoadConfig() (Config, error) {
 	}
 	cfg := Config{
 		Env: get("APP_ENV", "development"), Addr: get("APP_ADDR", ":8080"),
-		PublicAPIURL:   get("PUBLIC_API_URL", "http://localhost:8080"),
-		FrontendOrigin: get("FRONTEND_ORIGIN", "http://localhost:5500"),
-		JWTSecret:      get("JWT_SECRET", ""), JWTTTL: ttl,
+		PublicAPIURL:        get("PUBLIC_API_URL", "http://localhost:8080"),
+		FrontendOrigin:      get("FRONTEND_ORIGIN", "http://localhost:5500"),
+		ServicesCatalogFile: get("SERVICES_CATALOG_FILE", ""),
+		JWTSecret:           get("JWT_SECRET", ""), JWTTTL: ttl,
 		MongoURI:           get("MONGO_URI", "mongodb://127.0.0.1:27017"),
 		MongoDatabase:      get("MONGO_DATABASE", "smm_panel"),
 		RedisURL:           get("REDIS_URL", "redis://127.0.0.1:6379/0"),

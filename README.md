@@ -22,6 +22,17 @@ go run .
 
 Default demo login is configured by `DEMO_EMAIL` and `DEMO_PASSWORD`. Change both before production.
 
+## Service catalog API
+
+The frontend loads the catalog from the backend:
+
+```bash
+curl http://localhost:8080/api/categories
+curl 'http://localhost:8080/api/services?category=Telegram%20Members'
+```
+
+Place the provider response (an object containing a `services` array) in a JSON file and set `SERVICES_CATALOG_FILE` to use the full catalog. Categories and rates are never hardcoded in the frontend, and order creation validates `serviceId`, quantity limits, and the server-side rate.
+
 ## Required Vercel variables
 
 For the production service, configure `APP_ENV`, `JWT_SECRET`, `MONGO_URI`, `MONGO_DATABASE`, `REDIS_URL`, `FRONTEND_ORIGIN`, and `RATE_LIMIT_PER_MINUTE` in Vercel Project Settings → Environment Variables.
